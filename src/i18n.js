@@ -4,7 +4,7 @@ import i18n from 'i18n-js'
 import * as RNLocalize from 'react-native-localize'
 
 const translationGetters = {
-    zhTW: () => require('../src/locales/zhTW.json'),
+    zhTW: () => require('../src/locales/zhTW.js'),
 }
 
 const translate = memoize(
