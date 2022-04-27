@@ -55,6 +55,8 @@ const getBottomArticles = (myID: string, bid: string): Thunk<Articles> => {
         }
         let data = data_q
 
+        console.log('getBottomArticles: after articleApi: bid:', bid, 'data:', data, 'status:', status, 'errmsg:', errmsg)
+
         let bottomArticles = data.list || []
         bottomArticles.map((each: ArticleSummary) => each.numIdx = -1)
         bottomArticles.map((each: ArticleSummary) => each.url = `/board/${bid}/article/${each.aid}`)
@@ -70,6 +72,8 @@ const getBottomArticles = (myID: string, bid: string): Thunk<Articles> => {
         let lastSearchTitle = me.lastSearchTitle || ''
 
         let allArticles = (isNextEnd && !lastSearchTitle) ? articles.concat(bottomArticles) : articles
+
+        console.log('getBottomArticles: bottomArticles:', bottomArticles)
 
         let toUpdate: Articles = { bottomArticles, allArticles }
         // If regular article list is already loaded, add list length to scroll position

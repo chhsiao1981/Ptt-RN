@@ -8,9 +8,11 @@ import styles from './Articles.style'
 import * as DoArticles from '../reducers/articles'
 import { Articles } from '../reducers/articles'
 
-import { useReducer, getRootState } from "react-reducer-utils"
+import { useReducer, getRootState, getRoot } from "react-reducer-utils"
 
 import Empty from '../component/Empty'
+
+import IOSHeader from '../component/IOSHeader'
 
 type Props = {
     history: any
@@ -31,12 +33,9 @@ export default (props: Props) => {
 
 
     //get me
-    let me_q = getRootState<Articles>(stateArticles)
-    let isLoading = me_q?.isLoading
-    useEffect(() => {
-    }, [isLoading])
-
-    let allArticles = me_q?.allArticles || []
+    let me_q = getRoot<Articles>(stateArticles)
+    let isLoading = me_q?.state.isLoading
+    let allArticles = me_q?.state.allArticles || []
     useEffect(() => {
         if (!allArticles || !allArticles.length) {
             return
@@ -49,28 +48,36 @@ export default (props: Props) => {
         return <Empty />
     }
     let me = me_q
+    const { state, id: myID } = me
+    let bottomArticles = state.bottomArticles || []
 
     // event-handlers
     let goBack = () => {
         props.history.goBack()
     }
 
-    let onScroll = () => {
-
+    let onScrollDown = (...params: any[]) => {
+        console.log('onScrollDown: params:', params)
+        let articles = state.articles || []
+        let startIdx = articles.length ? articles[articles.length - 1].idx : ''
+        doArticles.getArticles(myID, bid, '', startIdx, true, true)
     }
 
     // render
     return (
         <View style={[styles.container]}>
-            <View style={styles.header}>
+            <IOSHeader />
+            <View style={styles.header} onPress={goBack}>
                 <Icon style={[styles.backIcon]} name={'arrow-back-ios'}
                     size={30} onPress={goBack} />
-                <Text style={[styles.boardName]}>{bid}</Text>
+                <Text style={[styles.boardName]} onPress={goBack}>{bid}</Text>
                 {isLoading ? <ActivityIndicator size="large" style={[styles.loadingCircle]} /> : null}
             </View>
             <ArticleList
+                articles={bottomArticles} scrollDown={() => {}} />
+            <ArticleList
                 articles={displayArticles}
-                scroll={onScroll} />
+                scrollDown={onScrollDown} />
         </View>
     )
 }

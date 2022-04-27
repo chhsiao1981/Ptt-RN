@@ -15,6 +15,6 @@ export default {
         return req.get(`/api/board/${bid}/articles?start_idx=${startIndex}&limit=${limit}`)
     },
     loadBottomArticles: async (bid: string): Promise<Resp<LoadBottomArticlesResult>> => {
-        return req.get(`/api/board/${bid}/bottomarticles`)
+        return req.get(`/api/board/${bid}/articles/bottom`)
     },
 }

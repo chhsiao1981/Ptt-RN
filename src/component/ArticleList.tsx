@@ -6,7 +6,7 @@ import styles from './ArticleList.style'
 
 type Props = {
     articles: ArticleSummary[]
-    scroll: () => any
+    scrollDown: () => any
 }
 
 export default (props: Props) => {
@@ -15,7 +15,7 @@ export default (props: Props) => {
             <FlatList<ArticleSummary>
                 data={props.articles}
                 renderItem={(each) => (<ArticleListItem key={each.index} article={each.item} />)}
-                onEndReached={props.scroll}
+                onEndReached={props.scrollDown}
             />
         </View>
     )
