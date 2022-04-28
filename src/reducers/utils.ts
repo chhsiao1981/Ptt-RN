@@ -27,14 +27,13 @@ export const mergeList = <T extends NumIdx>(origList: T[], newList: T[], isDescN
         let newStartNumIdx = origList.length ? ((origList[0].numIdx || 0) - 1) : (startNumIdx || newList.length - 1)
 
         newList.map((each, idx) => each.numIdx = newStartNumIdx - idx)
-        newList = newList.reverse()
-
+        newList.reverse()
         return newList.concat(origList)
     } else {
         let newStartNumIdx = origList.length ? ((origList[origList.length - 1].numIdx || 0) + 1) : (startNumIdx || 0)
         newList.map((each, idx) => each.numIdx = newStartNumIdx + idx)
+        return origList.concat(newList)
     }
-    return origList.concat(newList)
 }
 
 /////

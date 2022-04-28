@@ -39,7 +39,7 @@ export const init = (doMe: DispatchedAction<Articles>, bid: string, parentID?: s
     return (dispatch: Dispatch<Articles>, _: GetClassState<Articles>) => {
         dispatch(_init({ myID, myClass, doMe, parentID, doParent, state: { theDate } }))
         dispatch(getBottomArticles(myID, bid))
-        dispatch(getArticles(myID, bid, '', '', false, false))
+        dispatch(getArticles(myID, bid, '', '', true, false))
     }
 }
 
@@ -55,7 +55,7 @@ const getBottomArticles = (myID: string, bid: string): Thunk<Articles> => {
         }
         let data = data_q
 
-        console.log('getBottomArticles: after articleApi: bid:', bid, 'data:', data, 'status:', status, 'errmsg:', errmsg)
+        //console.log('getBottomArticles: after articleApi: bid:', bid, 'data:', data, 'status:', status, 'errmsg:', errmsg)
 
         let bottomArticles = data.list || []
         bottomArticles.map((each: ArticleSummary) => each.numIdx = -1)
@@ -73,7 +73,7 @@ const getBottomArticles = (myID: string, bid: string): Thunk<Articles> => {
 
         let allArticles = (isNextEnd && !lastSearchTitle) ? articles.concat(bottomArticles) : articles
 
-        console.log('getBottomArticles: bottomArticles:', bottomArticles)
+        //console.log('getBottomArticles: bottomArticles:', bottomArticles)
 
         let toUpdate: Articles = { bottomArticles, allArticles }
         // If regular article list is already loaded, add list length to scroll position
@@ -98,6 +98,7 @@ export const getArticles = (myID: string, bid: string, search: string, startIdx:
 
         // check busy
         if (me.isLoading) {
+            console.log('getArticles: isLoading:', me.isLoading)
             return
         }
 
@@ -120,10 +121,12 @@ export const getArticles = (myID: string, bid: string, search: string, startIdx:
         // check end
         if (desc) {
             if (isPreEnd) {
+                console.log('getArticles: isPreEnd:', me.isPreEnd)
                 return
             }
         } else {
             if (isNextEnd) {
+                console.log('getArticles: isNextEnd:', me.isNextEnd)
                 return
             }
         }
@@ -131,16 +134,18 @@ export const getArticles = (myID: string, bid: string, search: string, startIdx:
         // check repeated
         if (desc) {
             if (isNotFirst && lastPre === startIdx) {
+                console.log('getArticles: lastPre === startIdx:', me.lastPre, startIdx)
                 return
             }
         } else {
             if (isNotFirst && lastNext === startIdx) {
+                console.log('getArticles: lastNext === startIdx:', me.lastNext, startIdx)
                 return
             }
         }
 
         dispatch(_setData(myID, { isLoading: true }))
-        const [data_q, status, errmsg] = await articleApi.loadArticles(bid, startIdx, N_ARTICLES)
+        const [data_q, status, errmsg] = await articleApi.loadArticles(bid, startIdx, N_ARTICLES, desc)
         if (status !== 200) {
             dispatch(_setData(myID, { err: $t(`errmsg.${errmsg}`) }))
             return
@@ -149,6 +154,8 @@ export const getArticles = (myID: string, bid: string, search: string, startIdx:
             return
         }
         let data = data_q
+
+        //console.log('getArticles: after articleApi: data:', data)
 
         state = getClassState()
         me_q = getState(state, myID)
@@ -186,6 +193,7 @@ export const getArticles = (myID: string, bid: string, search: string, startIdx:
                 isNextEnd = true
             }
             if (!startIdx) {
+                console.log('getBottomArticles (!desc): no startIdx: isPreEnd')
                 toUpdate.isPreEnd = true
                 isPreEnd = true
             }
@@ -195,6 +203,7 @@ export const getArticles = (myID: string, bid: string, search: string, startIdx:
             toUpdate.lastPre = startIdx
             toUpdate.isLoading = false
             if (!data.next_idx) {
+                console.log('getBottomArticles (desc): no next_idx: isPreEnd')
                 toUpdate.isPreEnd = true
                 isPreEnd = true
             }

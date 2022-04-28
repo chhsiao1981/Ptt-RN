@@ -35,14 +35,14 @@ export default (props: Props) => {
     //get me
     let me_q = getRoot<Articles>(stateArticles)
     let isLoading = me_q?.state.isLoading
-    let allArticles = me_q?.state.allArticles || []
+    let theArticles = me_q?.state.articles || []
     useEffect(() => {
-        if (!allArticles || !allArticles.length) {
+        if (!theArticles || !theArticles.length) {
             return
         }
         // @ts-ignore
-        setDisplayArticles(allArticles)
-    }, [allArticles])
+        setDisplayArticles(theArticles)
+    }, [theArticles])
 
     if (!me_q) {
         return <Empty />
@@ -53,31 +53,41 @@ export default (props: Props) => {
 
     // event-handlers
     let goBack = () => {
+        console.log('goBack: history:', props.history)
         props.history.goBack()
+    }
+
+    let onScrollUp = (...params: any[]) => {
+        console.log('onScrollUp: params:', params)
+        let articles = state.articles || []
+        let startIdx = articles.length ? articles[0].idx : ''
+        doArticles.getArticles(myID, bid, '', startIdx, true, true)
     }
 
     let onScrollDown = (...params: any[]) => {
         console.log('onScrollDown: params:', params)
         let articles = state.articles || []
         let startIdx = articles.length ? articles[articles.length - 1].idx : ''
-        doArticles.getArticles(myID, bid, '', startIdx, true, true)
+        console.log('onScrollDown: to getArticles: myID:', myID, 'bid:', bid, 'startIdx:', startIdx)
+        doArticles.getArticles(myID, bid, '', startIdx, false, true)
     }
 
     // render
     return (
         <View style={[styles.container]}>
             <IOSHeader />
-            <View style={styles.header} onPress={goBack}>
+            <View style={styles.header} onTouchEnd={goBack}>
                 <Icon style={[styles.backIcon]} name={'arrow-back-ios'}
-                    size={30} onPress={goBack} />
-                <Text style={[styles.boardName]} onPress={goBack}>{bid}</Text>
+                    size={30} />
+                <Text style={[styles.boardName]}>{bid}</Text>
                 {isLoading ? <ActivityIndicator size="large" style={[styles.loadingCircle]} /> : null}
             </View>
             <ArticleList
-                articles={bottomArticles} scrollDown={() => {}} />
+                articles={bottomArticles} scrollDown={() => {}} scrollUp={() => {}} id='bottom' />
             <ArticleList
                 articles={displayArticles}
-                scrollDown={onScrollDown} />
+                scrollUp={onScrollUp}
+                scrollDown={onScrollDown} id='articles' />
         </View>
     )
 }

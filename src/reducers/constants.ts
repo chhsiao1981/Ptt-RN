@@ -1,1 +1,1 @@
-export const N_ARTICLES = 50
+export const N_ARTICLES = 30

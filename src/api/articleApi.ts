@@ -11,8 +11,8 @@ export type LoadBottomArticlesResult = {
 }
 
 export default {
-    loadArticles: async (bid: string, startIndex: string, limit: number): Promise<Resp<LoadArticlesResult>> => {
-        return req.get(`/api/board/${bid}/articles?start_idx=${startIndex}&limit=${limit}`)
+    loadArticles: async (bid: string, startIndex: string, limit: number, isDesc: boolean): Promise<Resp<LoadArticlesResult>> => {
+        return req.get(`/api/board/${bid}/articles?start_idx=${startIndex}&limit=${limit}&desc=${isDesc}`)
     },
     loadBottomArticles: async (bid: string): Promise<Resp<LoadBottomArticlesResult>> => {
         return req.get(`/api/board/${bid}/articles/bottom`)

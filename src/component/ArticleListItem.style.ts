@@ -4,7 +4,8 @@ const styles = StyleSheet.create({
     listItem: {
         flex: 1,
         marginVertical: 8,
-        marginHorizontal: 14
+        marginHorizontal: 14,
+        height: 50,
     },
     text: {
         color: 'white'

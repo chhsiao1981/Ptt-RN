@@ -1,3 +1,4 @@
+import { DisplayItem } from './displayitem'
 import { NumIdx } from './numidx'
 import { Rune } from './rune'
 
@@ -21,7 +22,7 @@ export interface ArticleBlock {
     next_idx: string
 }
 
-export interface ArticleSummary extends NumIdx {
+export interface ArticleSummary extends NumIdx, DisplayItem {
     bid: string
     aid: string
     deleted: boolean
