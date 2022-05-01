@@ -1,7 +1,3 @@
-/**
- * @format
- */
-
 import 'react-native'
 import React from 'react'
 import App from '../App'
@@ -10,8 +6,16 @@ import { cleanup } from '@testing-library/react-native'
 
 // Note: test renderer must be required after react-native.
 
-afterEach(cleanup)
+describe('app', () => {
+  afterEach(cleanup)
 
-it('renders correctly', () => {
-  render(<App />)
+  it('renders correctly', () => {
+    render(<App />)
+  })
+
+  /*
+  it('renders correctly', () => {
+    render(<App />)
+  })
+  */
 })

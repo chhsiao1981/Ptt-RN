@@ -10,6 +10,9 @@ const styles = StyleSheet.create({
     text: {
         color: 'white'
     },
+    highlight: {
+        color: 'yellow'
+    },
     primaryText: {
         flex: 1,
         fontSize: 20

@@ -1,32 +1,44 @@
-import React, { useEffect, useState, useRef } from "react"
-import { View, Dimensions } from 'react-native'
+import React from "react"
+import { NativeScrollEvent, NativeSyntheticEvent, View } from 'react-native'
 import { ArticleSummary } from "../model/article"
 import ArticleListItem from "./ArticleListItem"
 import styles from './ArticleList.style'
-import articles from "../reducers/articles"
 
-import FlatList from '../component/FlatList'
+import FlatList from './FlatList'
 
 type Props = {
     articles: ArticleSummary[]
+    scrollDownThreshold?: number
     scrollDown: () => any
+    scrollUpThreshold?: number
     scrollUp: () => any
-    isInit: boolean
-    id: string
+    scroll?: (e: NativeSyntheticEvent<NativeScrollEvent>, idx: number) => void
+    initToEnd: boolean
+    initIdxToScroll?: number
+    isHighlight?: boolean
+    accessibilityLabel?: string
+    isRefreshing: boolean
+    onRefresh?: () => any
 }
-
-const ITEM_HEIGHT = 50 + 16
 
 export default (props: Props) => {
     return (
         <View style={styles.page}>
             <FlatList<ArticleSummary>
-                ref={ref}
                 data={props.articles}
-                renderItem={(each) => (<ArticleListItem key={each.index} article={each.item} />)}
-                itemHeight={ITEM_HEIGHT}
-                onBeginReached={props.scrollUp}
-                onEndReached={props.scrollDown}
+                renderItem={(each) => (<ArticleListItem key={each.index} article={each.item} isHighlight={props.isHighlight} />)}
+                onBeginIdxReached={props.scrollUp}
+                onBeginIdxReachedThreshold={props.scrollUpThreshold}
+                onEndIdxReached={props.scrollDown}
+                onEndIdxReachedThreshold={props.scrollDownThreshold}
+                onTheScroll={props.scroll}
+                initIdxToScroll={props.initIdxToScroll}
+                initToEnd={props.initToEnd}
+                initialNumToRender={10}
+                accessibilityLabel={props.accessibilityLabel}
+
+                refreshing={props.isRefreshing}
+                onRefresh={props.onRefresh}
             />
         </View>
     )

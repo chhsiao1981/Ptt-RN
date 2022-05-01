@@ -26,10 +26,11 @@ export interface Articles extends State, Err, TheDate {
     lastPre?: string
     lastNext?: string
 
-    scrollToRow?: number
+    preIdx?: string | null
+    nextIdx?: string | null
 
-    preIdx?: string
-    nextIdx?: string
+    idxToScroll?: number
+    displayIdx?: number
 }
 
 // init
@@ -77,9 +78,6 @@ const getBottomArticles = (myID: string, bid: string): Thunk<Articles> => {
 
         let toUpdate: Articles = { bottomArticles, allArticles }
         // If regular article list is already loaded, add list length to scroll position
-        if (me.scrollToRow) {
-            toUpdate.scrollToRow = me.scrollToRow + bottomArticles.length
-        }
 
         dispatch(_setData(myID, toUpdate))
     })()
@@ -94,6 +92,7 @@ export const getArticles = (myID: string, bid: string, search: string, startIdx:
             return
         }
         let me = me_q
+        let displayIdx = me.displayIdx || -1
         let myArticles = me.articles || []
 
         // check busy
@@ -144,10 +143,16 @@ export const getArticles = (myID: string, bid: string, search: string, startIdx:
             }
         }
 
-        dispatch(_setData(myID, { isLoading: true }))
+        let loadingUpdate: Articles = {
+            isLoading: true,
+        }
+        if (displayIdx >= 0) {
+            loadingUpdate.idxToScroll = displayIdx
+        }
+        dispatch(_setData(myID, loadingUpdate))
         const [data_q, status, errmsg] = await articleApi.loadArticles(bid, startIdx, N_ARTICLES, desc)
         if (status !== 200) {
-            dispatch(_setData(myID, { err: $t(`errmsg.${errmsg}`) }))
+            dispatch(_setData(myID, { err: $t(`errmsg.${errmsg}`), idxToScroll: displayIdx }))
             return
         }
         if (!data_q) {
@@ -172,6 +177,20 @@ export const getArticles = (myID: string, bid: string, search: string, startIdx:
 
         let newArticles = mergeList(myArticles, articles, desc, startNumIdx, isExclude)
 
+        let idxToScroll = me.displayIdx || 0
+        if (desc) {
+            idxToScroll += articles.length
+            if (idxToScroll >= newArticles.length) {
+                idxToScroll = newArticles.length - 1
+            }
+            if (idxToScroll < 0) {
+                idxToScroll = 0
+            }
+        }
+
+        console.log('getArticles: displayIdx:', me.displayIdx, 'articles:', articles.length, 'idxToScroll:', idxToScroll, 'newArticles:', newArticles.length, 'desc:', desc)
+
+
         // to update
         let toUpdate: Articles = {
             lastSearchTitle: search,
@@ -183,6 +202,8 @@ export const getArticles = (myID: string, bid: string, search: string, startIdx:
             isPreEnd: isPreEnd,
             isNextEnd: isNextEnd,
             isNotFirst: true,
+
+            idxToScroll: idxToScroll,
         }
 
         if (!desc) {
@@ -199,7 +220,6 @@ export const getArticles = (myID: string, bid: string, search: string, startIdx:
             }
         } else {
             toUpdate.preIdx = data.next_idx
-            toUpdate.scrollToRow = articles.length - 1 //only dataList.length - 1 new items.
             toUpdate.lastPre = startIdx
             toUpdate.isLoading = false
             if (!data.next_idx) {
@@ -218,6 +238,39 @@ export const getArticles = (myID: string, bid: string, search: string, startIdx:
 
         dispatch(_setData(myID, toUpdate))
     })()
+}
+
+export const clean = (myID: string) => {
+    return (dispatch: Dispatch<Articles>, _: GetClassState<Articles>) => {
+        let toUpdate: Articles = {
+            articles: [],
+            bottomArticles: [],
+            allArticles: [],
+
+            isLoading: false,
+            isNotFirst: false,
+
+            isPreEnd: false,
+            isNextEnd: false,
+            lastSearchTitle: '',
+            lastPre: '',
+            lastNext: '',
+
+            preIdx: '',
+            nextIdx: '',
+
+            idxToScroll: 0,
+            displayIdx: -1,
+        }
+
+        dispatch(_setData(myID, toUpdate))
+    }
+}
+
+export const setDisplayIdx = (myID: string, idx: number) => {
+    return (dispatch: Dispatch<Articles>, _: GetClassState<Articles>) => {
+        dispatch(_setData(myID, { displayIdx: idx }))
+    }
 }
 
 export default createReducer()

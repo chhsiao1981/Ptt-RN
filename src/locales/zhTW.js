@@ -21,4 +21,7 @@ module.exports = {
     'EMAIL_ALREADY_EXISTS': '這個 email 已經有人使用囉～',
     'REGISTERED': '這個帳號已經有人用了～',
   },
+  'errmsg': {
+    'Network Error': '網路似乎有問題喔～',
+  },
 }

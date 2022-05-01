@@ -8,16 +8,21 @@ import { ArticleSummary } from "../model/article"
 type Props = {
     article: ArticleSummary
     key: number
+    isHighlight?: boolean
 }
 
 export default (props: Props) => {
     const a = props.article
     const createTime = new Date(a.create_time * 1000)
+    let titleStyles = props.isHighlight ? [styles.primaryText, styles.highlight] : [styles.text, styles.primaryText]
+
+    let classStyles = props.isHighlight ? [styles.secondaryText, styles.highlight] : [
+        styles.text, styles.secondaryText]
     return (
         <TouchableWithoutFeedback onPress={openArticle}>
             <View style={styles.listItem}>
                 <View style={styles.firstRow}>
-                    <Text style={[styles.text, styles.secondaryText]}>[{a.class}]</Text>
+                    <Text style={classStyles}>[{a.class}]</Text>
                     <Icon style={[styles.icon]} name={'schedule'} size={16} />
                     <Text style={[styles.text, styles.secondaryText]}>{
                         `${utils.timestampToMonth(createTime)}-${utils.timestampToDay(createTime)}`}</Text>
@@ -25,7 +30,7 @@ export default (props: Props) => {
                     <Text style={[styles.text, styles.secondaryText]}>{a.owner}</Text>
                 </View>
                 <View style={styles.secondRow}>
-                    <Text style={[styles.text, styles.primaryText]}>{a.title}</Text>
+                    <Text style={titleStyles}>{a.title}</Text>
                 </View>
                 <View style={styles.thirdRow}>
                     <Icon style={[styles.icon]} name={'upgrade'} size={16} />

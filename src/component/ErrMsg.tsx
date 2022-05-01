@@ -9,7 +9,7 @@ type Props = {
 export default (props: Props) => {
     return (
         <View style={[props.err ? styles.err : styles.hide]}>
-            <Text>{props.err}</Text>
+            <Text style={props.err ? styles.err : styles.hide}>{props.err}</Text>
         </View>
     )
 }

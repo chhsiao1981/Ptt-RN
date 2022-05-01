@@ -21,6 +21,9 @@ const styles = StyleSheet.create({
         color: 'white',
         textAlignVertical: 'center'
     },
+    articlelist: {
+        height: 600,
+    },
     articlesContainer: {
 
     },
