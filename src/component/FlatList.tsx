@@ -1,45 +1,67 @@
+import { emptyStatement, toSequenceExpression } from "@babel/types"
 import React, { useEffect, useState, useRef, Context } from "react"
+import invariant from 'invariant'
 
-import { FlatList, ListRenderItem, NativeSyntheticEvent, NativeScrollEvent, LayoutChangeEvent, FlatListProps, View } from "react-native"
-import { NativeScreen } from "react-native-screens"
+import { FlatList, ListRenderItem, NativeSyntheticEvent, NativeScrollEvent, LayoutChangeEvent, FlatListProps, View, ViewBase } from "react-native"
+import darkColors from "react-native-elements/dist/config/colorsDark"
+import { NativeScreen, screensEnabled } from "react-native-screens"
 
 import { DisplayItem } from "../model/displayitem"
+import Empty from "./Empty"
+import { setData } from "react-reducer-utils"
 
-export interface Prop<T extends DisplayItem> extends FlatListProps<T> {
-    onBeginIdxReached?: (idx: ContentIndex) => void
-    onBeginIdxReachedThreshold?: number
-    onEndIdxReached?: (idx: ContentIndex) => void
-    onEndIdxReachedThreshold?: number
-    onTheScroll?: (e: NativeSyntheticEvent<NativeScrollEvent>, idx: ContentIndex) => void
-    initIdxToScroll?: number
-    initIdxOffsetToScroll?: number
+export interface Prop<T> extends FlatListProps<T> {
+    onBeginReached?: ((info: { distanceFromBegin: number }) => void) | null | undefined
+    onBeginReachedThreshold?: number | null | undefined
+
+    /*
+     * whether initialized with scroll-to-end
+     * This is one-time setting, updated data wont scroll to end, unless data is reset (data is undefined, null, or length with 0).
+     */
     initToEnd?: boolean
-    accessibilityLabel?: string
+
+    /*
+     * is the new data includes the prepended data
+     * assuming that the original data is included in the new data.
+     * no need to change isWithPrepend (isWithPrepend can still be true) if the data is not changed.
+     */
+    isWithPrepend?: boolean
 }
 
-type ItemLayout = {
+export type ItemLayout = {
     length: number
     offset: number
     index: number
 }
 
-type ScrollToIndexFailedParams = {
+type DataOffset = {
+    offset: number
+    height: number
+}
+
+type ScrollToIndexParams = {
+    animated?: boolean | null | undefined
+    index: number
+    viewOffset?: number | undefined
+    viewPosition?: number | undefined
+}
+
+export type ScrollToIndexFailedParams = {
     index: number
     highestMeasuredFrameIndex: number
     averageItemLength: number
 }
 
-export type ContentIndex = {
+type ContentIndex = {
     index: number
     offset: number
+    dataLength: number
 }
 
 type ContentSize = {
     width: number
     height: number
 }
-
-const INVALID_IDX = -1
 
 type FlatListState = number
 const FLATLIST_STATE_NONE: FlatListState = 0
@@ -61,23 +83,35 @@ const FlatListStateStr = (state: FlatListState): string => {
     return '[invalid]'
 }
 
-const onViewableItemsChanged = (params: any) => {
-    console.log('FlatList.onViewableItemsChanged: params:', params)
-}
-
 // FlatList
 // An improved FlatList:
 //
 // 1. able to set onBeginIdxReached and onEndIdxReached
 // 2. require items extends DisplayItem, including height and offsetHeight
 // 4. able to go to the specified idx.
-export default <T extends DisplayItem>(props: Prop<T>): JSX.Element => {
+export default function <T>(props: Prop<T>): JSX.Element {
     const ref = useRef()
     const [layout, setLayout] = useState({ x: 0, y: 0, width: 0, height: 0 })
-    const [contentOffset, setContentOffset] = useState({ x: 0, y: 0 })
     const [contentSize, setContentSize] = useState({ width: 0, height: 0 })
-    const [contentIdx, setContentIdx] = useState({ index: -1, offset: -1 })
+    const [scrollContentOffset, setScrollContentOffset] = useState({ x: 0, y: 0 })
+    const [scrollContentIdx, setScrollContentIdx] = useState({ index: 0, offset: 0, dataLength: 0 })
     const [onScrollState, setOnScrollState] = useState(FLATLIST_STATE_NONE)
+    const [initScrollIndex, setInitScrollIndex] = useState(0)
+    let emptyDataOffset: readonly DataOffset[] = []
+    const [dataOffsets, setDataOffsets] = useState(emptyDataOffset)
+    const [isInitedToEnd, setIsInitedToEnd] = useState(false)
+    const [onScrollDataLength, setOnScrollDataLength] = useState(0)
+    const [isContentSizeTooSmall, setIsContentSizeTooSmall] = useState(false)
+
+    // must be with getItemLayout
+    invariant(
+        props.getItemLayout,
+        'getItemLayout should be defined',
+    )
+    if (!props.getItemLayout) {
+        return <Empty />
+    }
+    let getItemLayout = props.getItemLayout
 
     // able to init with specific idx
     //
@@ -85,138 +119,218 @@ export default <T extends DisplayItem>(props: Prop<T>): JSX.Element => {
     // 1.
     useEffect(() => {
         if (!ref || !ref.current) {
+            console.log(`FlatList (${props.accessibilityLabel}): no ref`)
             return
         }
         if (!layout.height) {
+            console.log(`FlatList (${props.accessibilityLabel}): no height`)
             return
         }
         if (!props.data || !props.data.length) {
+            // reset data
+            console.log(`FlatList (${props.accessibilityLabel}): no data: to reset`)
+            if (scrollContentIdx.index !== 0 || scrollContentIdx.dataLength !== 0) {
+                setScrollContentIdx({ index: 0, offset: 0, dataLength: 0 })
+            }
+            if (onScrollState !== FLATLIST_STATE_NONE) {
+                setOnScrollState(FLATLIST_STATE_NONE)
+            }
+            if (initScrollIndex !== 0) {
+                setInitScrollIndex(0)
+            }
+            if (dataOffsets.length) {
+                setDataOffsets(emptyDataOffset)
+            }
+            if (isInitedToEnd) {
+                setIsInitedToEnd(false)
+            }
             return
         }
         let data = props.data
 
-        if (typeof props.initIdxToScroll !== 'undefined' && props.initIdxToScroll >= 0 && props.initIdxToScroll < data.length) {
-            if (props.initIdxToScroll === contentIdx.index) {
-                console.log(`FlatList: (${props.accessibilityLabel || ''}) initIdxToScroll === theIdx: initIdxToScroll:`, props.initIdxToScroll, 'contentIdx:', contentIdx)
-                return
-            }
+        // @ts-ignore
+        let lastLayout = getItemLayout(data, data.length - 1)
 
-            let item = data[props.initIdxToScroll]
-            console.log(`FlatList: (${props.accessibilityLabel || ''}) initIdxToScroll: `, props.initIdxToScroll, 'data:', data.length, 'offset:', item.offsetHeight, 'ref:', ref.current)
+        if (contentSize.height < lastLayout.offset + lastLayout.length) {
+            console.log(`FlatList (${props.accessibilityLabel}): contentsize too small: contentSize:`, contentSize.height, 'data:', lastLayout.offset, lastLayout.length)
+            setIsContentSizeTooSmall(true)
+            return
+        }
+        setIsContentSizeTooSmall(false)
+
+        // set data-offset.
+        console.log(`FlatList.useEffect (${props.accessibilityLabel}): to check dataOffsets: dataOffsets:`, dataOffsets.length, 'data:', props.data.length)
+        let origDataOffsetLength = dataOffsets.length
+        if (origDataOffsetLength !== props.data.length) {
+            let newDataOffsets = props.data.map((each, idx): DataOffset => {
+                // @ts-ignore
+                let eachLayout = getItemLayout(data, idx)
+                return { offset: eachLayout.offset, height: eachLayout.length }
+            })
+            console.log(`FlatList (${props.accessibilityLabel}): to set dataOffsets`)
+            setDataOffsets(newDataOffsets)
+        }
+
+        // reset on-scroll-state
+        setOnScrollState(FLATLIST_STATE_NONE)
+
+        // specified initScrollIndex
+        if (typeof props.initialScrollIndex !== 'undefined' && props.initialScrollIndex !== null && props.initialScrollIndex !== initScrollIndex) {
+
+            console.log(`FlatList (${props.accessibilityLabel}) (with initialScrollIndex): start: props.initializedScrollIndex:`, props.initialScrollIndex, 'data:', data.length)
+
+            setInitScrollIndex(props.initialScrollIndex)
+
+            // assuming continued from previous data
+            let toScrollToIndex: ScrollToIndexParams = { index: props.initialScrollIndex, viewOffset: -scrollContentIdx.offset, animated: false }
+
+            console.log(`FlatList (${props.accessibilityLabel}) (with initialScrollIndex): to scroll-to-index:`, toScrollToIndex)
             // @ts-ignore
-            //ref.current.scrollToOffset({ offset: item.offsetHeight, animated: false })
-
-            ref.current.scrollToIndex({ index: props.initIdxToScroll, animated: false })
-
+            ref.current.scrollToIndex(toScrollToIndex)
             return
         }
 
-        if (!props.initToEnd) {
+        // continued from previous data
+        if (props.isWithPrepend && props.data.length !== origDataOffsetLength) {
+            let diffIndex = props.data.length - origDataOffsetLength
+            let toScrollToIndex: ScrollToIndexParams = { index: scrollContentIdx.index + diffIndex, viewOffset: -scrollContentIdx.offset, animated: false }
+
+            console.log(`FlatList (${props.accessibilityLabel}) (isWithPrepend): to scroll-to-index:`, toScrollToIndex, 'scrollContentIdx:', scrollContentIdx.index, 'diffIndex:', diffIndex)
+            // @ts-ignore
+            ref.current.scrollToIndex(toScrollToIndex)
             return
         }
 
-        let item = data[data.length - 1]
-        // @ts-ignore
-        console.log(`FlatList (${props.accessibilityLabel}): to initToEnd: data.length:`, data.length, 'offset:', item.offsetHeight, 'ref:', ref.current.scrollToEnd)
-        if (typeof item.offsetHeight === 'undefined' || item.offsetHeight === null) {
-            return
-        }
-        // @ts-ignore
-        ref.current.scrollToEnd({ animated: false })
-        setOnScrollState(FLATLIST_STATE_END)
-    }, [ref, props.data, layout, props.initIdxToScroll])
+        if (props.initToEnd && !isInitedToEnd) {
+            setIsInitedToEnd(true)
 
-    // able to scroll-up
+            let toScrollToIndex: ScrollToIndexParams = { index: props.data.length - 1, viewOffset: 0, animated: false }
+
+            console.log(`FlatList (${props.accessibilityLabel}) (init-to-end): to scroll-to-index:`, toScrollToIndex)
+            // @ts-ignore
+            ref.current.scrollToIndex(toScrollToIndex)
+        }
+
+        // set default scroll-content-idx
+        if (scrollContentIdx.dataLength === 0 && !props.initialScrollIndex) {
+            let toScrollContentIdx = { index: 0, offset: 0, dataLength: props.data.length }
+            console.log(`FlatList (${props.accessibilityLabel}) (isWithPrepend): to set scroll-content-idx:`, toScrollContentIdx)
+            setScrollContentIdx(toScrollContentIdx)
+        }
+    }, [ref, props.data, layout, contentSize, props.initialScrollIndex])
+
+    // customized on-scroll.
+    // setting contentOffset, scroll-content-idx
     let onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         console.log(`FlatList.onScroll (${props.accessibilityLabel}): start`)
         const { contentOffset, contentSize } = e.nativeEvent
 
+        if (!dataOffsets.length) {
+            if (onScrollDataLength) {
+                setOnScrollDataLength(0)
+            }
+            return
+        }
+
         let y = contentOffset.y
+        let origOnScrollDataLength = onScrollDataLength
+        if (origOnScrollDataLength < dataOffsets.length && props.isWithPrepend) {
+            let diffLength = dataOffsets.length - onScrollDataLength
+            y += dataOffsets[diffLength].offset
+        }
+        setOnScrollDataLength(dataOffsets.length)
+
+        console.log(`FlatList.onScroll (${props.accessibilityLabel}): to check y: y:`, y, 'contentOffset.y:', contentOffset.y, 'contentSize.height:', contentSize.height)
         if (y < 0) {
             y = 0
         } else if (y >= contentSize.height) {
-            y = contentSize.height
-        }
-
-        // @ts-ignore
-        let data = props.data || []
-        if (!data.length) {
-            return
-        }
-        //check contentSize aligned
-        let lastData = data[data.length - 1]
-        if (!(contentSize.height === lastData.offsetHeight + lastData.height)) {
-            console.log(`FlatList.onScroll (${props.accessibilityLabel}): contentSize !== data: contentSize:`, contentSize.height, 'data:', lastData.offsetHeight, lastData.height, lastData.offsetHeight + lastData.height)
-            return
+            y = dataOffsets[dataOffsets.length - 1].offset + dataOffsets[dataOffsets.length - 1].height * 0.99
         }
 
         //
-        let theIdx: ContentIndex = data.reduce((r, each, i) => {
-            if (each.offsetHeight <= y && each.offsetHeight + each.height >= y) {
-                return { index: i, offset: y - each.offsetHeight }
+        let contentIdx: ContentIndex = dataOffsets.reduce((r, each, i) => {
+            if (each.offset <= y && each.offset + each.height > y) {
+                r.index = i
+                r.offset = y - each.offset
+                return r
             } else {
                 return r
             }
-        }, { index: -1, offset: -1 })
+        }, { index: 0, offset: 0, dataLength: dataOffsets.length })
+        setScrollContentIdx(contentIdx)
+        setScrollContentOffset({ x: contentOffset.x, y: contentOffset.y })
 
-        console.log(`FlatList.onScroll (${props.accessibilityLabel}): y:`, y, 'theIdx:', theIdx, 'data:', data.map((each) => each.offsetHeight), 'contentSize:', contentSize, 'theState:', FlatListStateStr(onScrollState))
-        setContentOffset({ x: contentOffset.x, y: contentOffset.y })
-        setContentIdx(theIdx)
-
-        // no data yet
-        if (!props.data || !props.data.length) {
+        if (isContentSizeTooSmall) {
+            console.log(`FlatList.onScroll (${props.accessibilityLabel}): contentSize too small`)
             return
         }
 
+        console.log(`FlatList.onScroll(${props.accessibilityLabel}): to check reach: y: `, y, 'contentIdx:', contentIdx, 'contentOffset:', contentOffset, 'data:', dataOffsets.map((each) => each.offset), 'contentSize:', contentSize, 'theState:', FlatListStateStr(onScrollState))
         //reached begin-data
         let origState = onScrollState
-        let isBeginReached = theIdx.index <= (props.onBeginIdxReachedThreshold || 0)
-        if (onScrollState !== FLATLIST_STATE_BEGIN && isBeginReached) {
-            console.log(`FlatList.onScroll (${props.accessibilityLabel}): to set begin: origState:`, origState)
+        let onBeginReachedThreshold = props.onBeginReachedThreshold ? (props.onBeginReachedThreshold * layout.height) : 2
+        let isBeginReached = y <= onBeginReachedThreshold
+        console.log(`FlatList.onScroll(${props.accessibilityLabel}): to check begin: origState: `, FlatListStateStr(origState), 'y:', y, 'onBeginReachedThreshold:', onBeginReachedThreshold, 'isBeginReached:', isBeginReached)
+        if (origState !== FLATLIST_STATE_BEGIN && isBeginReached) {
+            console.log(`FlatList.onScroll(${props.accessibilityLabel}): to set begin: origState: `, FlatListStateStr(origState))
+
             setOnScrollState(FLATLIST_STATE_BEGIN)
-            if (origState !== FLATLIST_STATE_NONE && props.onBeginIdxReached) {
-                props.onBeginIdxReached(theIdx)
+            if (origState !== FLATLIST_STATE_NONE && props.onBeginReached) {
+                console.log(`FlatList.onScroll(${props.accessibilityLabel}): to onBeginReached`)
+                props.onBeginReached({ distanceFromBegin: y })
             }
         }
 
-        let isEndReached = theIdx.index >= (data.length - 1 - (props.onEndIdxReachedThreshold || 0))
-        if (onScrollState !== FLATLIST_STATE_END && isEndReached) {
-            console.log(`FlatList.onScroll (${props.accessibilityLabel}): to set end: origState:`, origState)
+        // reached end-data
+        let onEndReachedThreshold = props.onEndReachedThreshold ? (props.onEndReachedThreshold * layout.height) : 2
+        let distanceFromEnd = contentSize.height - y
+        let isEndReached = distanceFromEnd <= onEndReachedThreshold
+        console.log(`FlatList.onScroll(${props.accessibilityLabel}): to check end: origState: `, FlatListStateStr(origState), 'distanceFromEnd:', distanceFromEnd, 'onEndReachedThreshold:', onEndReachedThreshold, 'isEndReached:', isEndReached)
+
+        if (origState !== FLATLIST_STATE_END && isEndReached) {
+            console.log(`FlatList.onScroll(${props.accessibilityLabel}): to set end: origState: `, FlatListStateStr(origState))
+
             setOnScrollState(FLATLIST_STATE_END)
-            if (origState !== FLATLIST_STATE_NONE && props.onEndIdxReached) {
-                props.onEndIdxReached(theIdx)
+            if (origState !== FLATLIST_STATE_NONE && props.onEndReached) {
+                props.onEndReached({ distanceFromEnd })
             }
         }
 
+        // no beginReached and no endReached: set state as other
         if (!isBeginReached && !isEndReached && onScrollState !== FLATLIST_STATE_OTHER) {
-            console.log(`FlatList.onScroll (${props.accessibilityLabel}): to set other`)
+            console.log(`FlatList.onScroll(${props.accessibilityLabel}): to set other`)
             setOnScrollState(FLATLIST_STATE_OTHER)
         }
 
-        if (props.onTheScroll) {
-            props.onTheScroll(e, theIdx)
+        if (props.onScroll) {
+            props.onScroll(e)
         }
     }
 
+    // onScrollToIndexFailed
     let onScrollToIndexFailed = (err: ScrollToIndexFailedParams) => {
-        console.log(`FlatList.onScrollToIndexFailed (${props.accessibilityLabel}): err:`, err)
+        console.log(`FlatList.onScrollToIndexFailed(${props.accessibilityLabel}): err: `, err)
         setTimeout(() => {
-            if (!props.data || !props.data.length) {
-                return
-            }
             if (!ref || !ref.current) {
                 return
             }
 
-            let data = props.data
-            if (data.length <= err.index) {
+            // data possibly already changed
+            if (!props.data || !props.data.length || err.index >= props.data.length) {
                 return
             }
+
+            // try to scroll again
             // @ts-ignore
             ref.current.scrollToIndex({ index: err.index, animated: false })
         }, 100)
+
+        if (props.onScrollToIndexFailed) {
+            props.onScrollToIndexFailed(err)
+        }
     }
 
+    // setLayout
     let onLayout = (e: LayoutChangeEvent) => {
         const { layout } = e.nativeEvent
         console.log(`onLayout(${props.accessibilityLabel}): layout: `, layout)
@@ -228,74 +342,34 @@ export default <T extends DisplayItem>(props: Prop<T>): JSX.Element => {
         console.log('onLayout: done')
     }
 
+    // setContentSize
     let onContentSizeChanged = (width: number, height: number) => {
+        console.log(`onContentSize(${props.accessibilityLabel}): width: ${width} height: ${height}`)
         setContentSize({ width, height })
-    }
-
-    // @ts-ignore
-    let getItemLayout = (data?: T[] | null, idx: number): ItemLayout => {
-        if (props.getItemLayout) {
-            return props.getItemLayout(data, idx)
-        }
-
-        let theData = data || []
-        let theIdx = idx
-        let theHeight = 0
-        let theOffset = theHeight * theIdx
-
-        if (theIdx >= 0 && theIdx < theData.length) {
-            let theItem = theData[theIdx]
-            theHeight = theItem.height ? theItem.height : theHeight
-            theOffset = theItem.offsetHeight ? theItem.offsetHeight : theOffset
-        }
-
-        // console.log('getItemLayout: idx:', idx, 'length:', theHeight, 'offset:', theOffset, 'index:', theIdx)
-
-        return {
-            length: theHeight,
-            offset: theOffset,
-            index: theIdx,
+        if (props.onContentSizeChange) {
+            props.onContentSizeChange(width, height)
         }
     }
 
     let theProps = Object.assign({}, props)
     theProps.onScroll = onScroll
     theProps.onLayout = onLayout
-    theProps.getItemLayout = getItemLayout
+    theProps.onContentSizeChange = onContentSizeChanged
+    theProps.onEndReached = null
+    theProps.onEndReachedThreshold = null
+    theProps.initialScrollIndex = null
+    theProps.onScrollToIndexFailed = onScrollToIndexFailed
 
-    let viewabilityConfig = {
-        waitForInteraction: true,
-        // At least one of the viewAreaCoveragePercentThreshold or itemVisiblePercentThreshold is required.
-        viewAreaCoveragePercentThreshold: 95,
-        //itemVisiblePercentThreshold: 75,
+    let viewabilityConfig = Object.assign({}, { waitForInteraction: true }, props.viewabilityConfig)
+    if (!viewabilityConfig.viewAreaCoveragePercentThreshold && !viewabilityConfig.itemVisiblePercentThreshold) {
+        viewabilityConfig.itemVisiblePercentThreshold = 95
     }
 
-
-    console.log(`FlatList (${props.accessibilityLabel}): to render: refreshing:`, props.refreshing, 'onRefresh:', props.onRefresh)
     return (
         <FlatList<T>
             ref={ref}
-            accessibilityLabel={props.accessibilityLabel}
-            data={props.data}
-            renderItem={props.renderItem}
-            onScroll={onScroll}
-            onScrollToIndexFailed={onScrollToIndexFailed}
-
-            getItemLayout={getItemLayout}
-            onLayout={onLayout}
-
-            onViewableItemsChanged={onViewableItemsChanged}
-
-            initialScrollIndex={props.initialScrollIndex}
-            initialNumToRender={props.initialNumToRender}
-
-            refreshing={props.refreshing}
-            onRefresh={props.onRefresh}
-
-            onEndReached={props.onEndReached}
-            onEndReachedThreshold={props.onEndReachedThreshold}
-
             viewabilityConfig={viewabilityConfig}
+            {...theProps}
         />
     )
 }

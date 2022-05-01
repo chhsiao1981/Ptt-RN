@@ -40,6 +40,7 @@
     "@react-native-community/eslint-config": "^2.0.0",
     "@testing-library/jest-native": "^4.0.4",
     "@testing-library/react-native": "^9.1.0",
+    "@types/invariant": "^2.2.35",
     "@types/jest": "^26.0.23",
     "@types/react-native": "^0.67.4",
     "@types/react-router-dom": "^5.3.3",
@@ -60,7 +61,9 @@
     "setupFiles": [
       "./test/jestSetup.ts"
     ],
-    "setupFilesAfterEnv": ["@testing-library/jest-native/extend-expect"],
+    "setupFilesAfterEnv": [
+      "@testing-library/jest-native/extend-expect"
+    ],
     "transformIgnorePatterns": [
       "node_modules/(?!(react-native|@react-native|react-native-elements|react-native-size-matters|react-native-ratings|react-native-vector-icons|react-router-native|@react-navigation)/)"
     ],

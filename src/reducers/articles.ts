@@ -31,6 +31,8 @@ export interface Articles extends State, Err, TheDate {
 
     idxToScroll?: number
     displayIdx?: number
+
+    isWithPrepend?: boolean
 }
 
 // init
@@ -204,6 +206,8 @@ export const getArticles = (myID: string, bid: string, search: string, startIdx:
             isNotFirst: true,
 
             idxToScroll: idxToScroll,
+
+            isWithPrepend: false
         }
 
         if (!desc) {
@@ -230,6 +234,9 @@ export const getArticles = (myID: string, bid: string, search: string, startIdx:
             if (!startIdx) {
                 toUpdate.isNextEnd = true
                 isNextEnd = true
+            }
+            if (myArticles.length) {
+                toUpdate.isWithPrepend = true
             }
         }
 

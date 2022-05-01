@@ -88,6 +88,7 @@ export default (props: Props) => {
     }
     let me = me_q
     const { state, id: myID } = me
+    let articles = state.articles || []
 
     // event-handlers
     let goBack = () => {
@@ -111,12 +112,10 @@ export default (props: Props) => {
         doArticles.getArticles(myID, bid, '', startIdx, false, true)
     }
 
-    let onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>, idx: number) => {
+    let onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const { contentOffset, contentSize } = e.nativeEvent
 
         let articles = state.articles || []
-        console.log('Articles.onScroll: contentOffset:', contentOffset, 'contentSize:', contentSize, 'idx:', idx, 'item:', articles[idx].title)
-        doArticles.setDisplayIdx(myID, idx)
     }
 
     let onRefresh = (...params: any[]) => {
@@ -125,9 +124,7 @@ export default (props: Props) => {
 
 
     // render
-    let isRefreshing = state.isLoading || false
-
-    console.log('to render: displayArticles:', displayArticles.length, 'displayBottomArticles:', displayBottomArticles.length, 'idxToScroll:', state.idxToScroll, 'isRefreshing:', isRefreshing)
+    console.log('to render: articles:', articles.length, 'displayBottomArticles:', displayBottomArticles.length, 'idxToScroll:', state.idxToScroll)
     return (
         <View style={[styles.container]}>
             <IOSHeader />
@@ -139,16 +136,14 @@ export default (props: Props) => {
             </View>
             <View style={styles.articlelist}>
                 <ArticleList
-                    articles={displayArticles}
+                    articles={articles}
                     scrollUp={onScrollUp}
-                    scrollDown={onScrollDown} accessibilityLabel='articles' initIdxToScroll={state.idxToScroll} initToEnd={true} scrollUpThreshold={10} scrollDownThreshold={10} scroll={onScroll}
-                    isRefreshing={isRefreshing}
-                    onRefresh={onRefresh}
+                    scrollDown={onScrollDown} accessibilityLabel='articles' initialScrollIndex={state.idxToScroll} scrollUpThreshold={1} scrollDownThreshold={1} scroll={onScroll} isWithPrepend={state.isWithPrepend}
                 />
             </View>
             <View>
                 <ArticleList
-                    articles={displayBottomArticles} scrollDown={() => {}} scrollUp={() => {}} accessibilityLabel='bottom' initToEnd={false} isHighlight={true} isRefreshing={false} />
+                    articles={displayBottomArticles} accessibilityLabel='bottom' isHighlight={true} />
             </View>
         </View>
     )
