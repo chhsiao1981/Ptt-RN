@@ -26,18 +26,17 @@ export default (props: Props) => {
         doPopularBoards.init(doPopularBoards)
     }, [])
 
-    console.log('Platform.OS:', Platform.OS)
-
     //get me
     let me_q = getRootState<PopularBoards>(statePopularBoards)
-    let isLoading = me_q?.isLoading
-    useEffect(() => {
-    }, [isLoading])
 
     if (!me_q) {
         return <Empty />
     }
     let me = me_q
+    let isLoading = me.isLoading
+
+    useEffect(() => {
+    }, [isLoading])
 
     // render
     return (

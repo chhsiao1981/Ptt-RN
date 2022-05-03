@@ -1,21 +1,18 @@
 import ArticleList from "../component/ArticleList"
-import React, { useEffect, useState } from "react"
-import { ActivityIndicator, View, Text, NativeSyntheticEvent, NativeScrollEvent } from "react-native"
+import React, { useEffect } from "react"
+import { ActivityIndicator, View, Text } from "react-native"
 import { useParams } from 'react-router-dom'
 import Icon from "react-native-vector-icons/MaterialIcons"
 import styles from './Articles.style'
 
-import articles, * as DoArticles from '../reducers/articles'
+import * as DoArticles from '../reducers/articles'
 import { Articles } from '../reducers/articles'
 
-import { useReducer, getRootState, getRoot } from "react-reducer-utils"
+import { useReducer, getRoot } from "react-reducer-utils"
 
 import Empty from '../component/Empty'
 
 import IOSHeader from '../component/IOSHeader'
-import { ArticleSummary } from "../model/article"
-import { ITEM_HEIGHT } from "../component/constants"
-import { NativeScreen } from "react-native-screens"
 
 type Props = {
     history: any
@@ -24,12 +21,6 @@ type Props = {
 
 export default (props: Props) => {
     const [stateArticles, doArticles] = useReducer(DoArticles)
-    let initDisplayBottomArticles: ArticleSummary[] = []
-    const [displayBottomArticles, _setDisplayBottomArticles] = useState(initDisplayBottomArticles)
-    let initDisplayArticles: ArticleSummary[] = []
-    const [displayArticles, _setDisplayArticles] = useState(initDisplayArticles)
-    const [nextStartIdx, setNextStartIdx] = useState('')
-
     //init
     // @ts-ignore
     let { bid } = useParams()
@@ -39,56 +30,16 @@ export default (props: Props) => {
 
 
     //get me
-    let setDisplayArticles = (articles: ArticleSummary[]) => {
-        let offsetHeight = 0
-        articles.map((each, idx) => {
-            each.height = ITEM_HEIGHT
-            each.offsetHeight = offsetHeight
-            offsetHeight += each.height
-        })
-
-        console.log('to _setDisplayArticles: articles:', articles.length)
-        _setDisplayArticles(articles)
-    }
-
-    let setDisplayBottomArticles = (articles: ArticleSummary[]) => {
-        let offsetHeight = 0
-        articles.map((each, idx) => {
-            each.height = ITEM_HEIGHT
-            each.offsetHeight = offsetHeight
-            offsetHeight += each.height
-        })
-        console.log('to _setDisplayBottomArticles: articles:', articles.length)
-        _setDisplayBottomArticles(articles)
-    }
-
-    let me_q = getRoot<Articles>(stateArticles)
-    let isLoading = me_q?.state.isLoading
-    let theArticles = me_q?.state.articles || []
-    let bottomArticles = me_q?.state.bottomArticles || []
-    useEffect(() => {
-        if (!theArticles || !theArticles.length) {
-            return
-        }
-        // @ts-ignore
-        setDisplayArticles(theArticles)
-    }, [theArticles])
-
-
-    useEffect(() => {
-        if (!bottomArticles || !bottomArticles.length) {
-            return
-        }
-        // @ts-ignore
-        _setDisplayBottomArticles(bottomArticles)
-    }, [bottomArticles])
-
-    if (!me_q) {
+    let root_q = getRoot<Articles>(stateArticles)
+    if (!root_q) {
         return <Empty />
     }
-    let me = me_q
-    const { state, id: myID } = me
-    let articles = state.articles || []
+    let root = root_q
+
+    const { state: me, id: myID } = root
+    let articles = me.articles || []
+    let isLoading = me.isLoading
+    let bottomArticles = me.bottomArticles || []
 
     // event-handlers
     let goBack = () => {
@@ -97,34 +48,21 @@ export default (props: Props) => {
         props.history.goBack()
     }
 
-    let onScrollUp = (...params: any[]) => {
+    let onScrollUp = async (...params: any[]) => {
         console.log('onScrollUp: params:', params)
-        let articles = state.articles || []
+        let articles = me.articles || []
         let startIdx = articles.length ? articles[0].idx : ''
         doArticles.getArticles(myID, bid, '', startIdx, true, true)
     }
 
-    let onScrollDown = (...params: any[]) => {
+    let onScrollDown = async (...params: any[]) => {
         console.log('onScrollDown: params:', params)
-        let articles = state.articles || []
+        let articles = me.articles || []
         let startIdx = articles.length ? articles[articles.length - 1].idx : ''
-        console.log('onScrollDown: to getArticles: myID:', myID, 'bid:', bid, 'startIdx:', startIdx)
         doArticles.getArticles(myID, bid, '', startIdx, false, true)
     }
 
-    let onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-        const { contentOffset, contentSize } = e.nativeEvent
-
-        let articles = state.articles || []
-    }
-
-    let onRefresh = (...params: any[]) => {
-        console.log('Articles.onRefresh: params:', params)
-    }
-
-
     // render
-    console.log('to render: articles:', articles.length, 'displayBottomArticles:', displayBottomArticles.length, 'idxToScroll:', state.idxToScroll)
     return (
         <View style={[styles.container]}>
             <IOSHeader />
@@ -137,13 +75,13 @@ export default (props: Props) => {
             <View style={styles.articlelist}>
                 <ArticleList
                     articles={articles}
-                    scrollUp={onScrollUp}
-                    scrollDown={onScrollDown} accessibilityLabel='articles' initialScrollIndex={state.idxToScroll} scrollUpThreshold={1} scrollDownThreshold={1} scroll={onScroll} isWithPrepend={state.isWithPrepend}
+                    onStartReached={onScrollUp}
+                    onEndReached={onScrollDown} accessibilityLabel='articles' onStartReachedThreshold={1} onEndReachedThreshold={1}
                 />
             </View>
             <View>
                 <ArticleList
-                    articles={displayBottomArticles} accessibilityLabel='bottom' isHighlight={true} />
+                    articles={bottomArticles} accessibilityLabel='bottom' isHighlight={true} />
             </View>
         </View>
     )
