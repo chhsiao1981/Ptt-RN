@@ -1,10 +1,12 @@
-import React from "react"
-import { NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
+import React, { useEffect, useRef, useState } from "react"
+import { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
 import { ArticleSummary } from "../model/article"
 import ArticleListItem from "./ArticleListItem"
 
 import { FlatList } from 'react-native-bidirectional-infinite-scroll'
 import { ITEM_HEIGHT } from "./constants"
+import articles from "../reducers/articles"
+import Empty from "./Empty"
 
 type Props = {
     articles: ArticleSummary[]
@@ -18,6 +20,27 @@ type Props = {
 }
 
 export default (props: Props) => {
+    let ref = useRef()
+    const [theLayout, setTheLayout] = useState({ x: 0, y: 0, width: 0, height: 0 })
+    const [theContentSize, setTheContentSize] = useState({ width: 0, height: 0 })
+
+    /*
+    useEffect(() => {
+        if (!ref || !ref.current) {
+            return
+        }
+        if (!articles || articles.length === 0) {
+            return
+        }
+        if (!theLayout.height) {
+            return
+        }
+        if (!theContentSize.height)
+            ref.current.scrollToEnd({ animated: false })
+
+    }, [ref, articles, theLayout.height, theContentSize.height])
+    */
+
     // @ts-ignore
     let getItemLayout = (_?: ArticleSummary[] | null, index: number): ItemLayout => {
         return {
@@ -30,11 +53,26 @@ export default (props: Props) => {
     let emptyFn = async () => {
     }
 
+    let onLayout = (e: LayoutChangeEvent) => {
+        const { layout } = e.nativeEvent
+
+        setTheLayout({ x: layout.x, y: layout.y, width: layout.width, height: layout.height })
+    }
+
+    let onContentSizeChange = (width: number, height: number) => {
+        setTheContentSize({ width: width, height: height })
+    }
+
     let onStartReached = props.onStartReached || emptyFn
     let onEndReached = props.onEndReached || emptyFn
 
+    if (!props.articles.length) {
+        return <Empty />
+    }
+
     return (
         <FlatList<ArticleSummary>
+            ref={ref}
             data={props.articles}
             renderItem={(each) => (<ArticleListItem key={each.index} article={each.item} isHighlight={props.isHighlight} />)}
             onStartReached={onStartReached}
@@ -44,6 +82,11 @@ export default (props: Props) => {
             onScroll={props.onScroll}
             accessibilityLabel={props.accessibilityLabel}
             getItemLayout={getItemLayout}
+            onLayout={onLayout}
+            initialScrollIndex={props.articles.length - 1}
+            onContentSizeChange={onContentSizeChange}
+            maintainVisibleContentPosition={true}
+            windowSize={21}
         />
     )
 }

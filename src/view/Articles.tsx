@@ -1,6 +1,6 @@
 import ArticleList from "../component/ArticleList"
-import React, { useEffect } from "react"
-import { ActivityIndicator, View, Text } from "react-native"
+import React, { useEffect, useState } from "react"
+import { ActivityIndicator, View, Text, NativeSyntheticEvent, NativeScrollEvent } from "react-native"
 import { useParams } from 'react-router-dom'
 import Icon from "react-native-vector-icons/MaterialIcons"
 import styles from './Articles.style'
@@ -13,6 +13,7 @@ import { useReducer, getRoot } from "react-reducer-utils"
 import Empty from '../component/Empty'
 
 import IOSHeader from '../component/IOSHeader'
+import { NativeScreen } from "react-native-screens"
 
 type Props = {
     history: any
@@ -21,6 +22,7 @@ type Props = {
 
 export default (props: Props) => {
     const [stateArticles, doArticles] = useReducer(DoArticles)
+    const [isAtTop, setIsAtTop] = useState(true)
     //init
     // @ts-ignore
     let { bid } = useParams()
@@ -62,6 +64,23 @@ export default (props: Props) => {
         doArticles.getArticles(myID, bid, '', startIdx, false, true)
     }
 
+    let onScroll = async (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+        const { contentOffset } = e.nativeEvent
+        console.log('onScroll: e:', e.nativeEvent, 'contentOffset:', contentOffset)
+        if (contentOffset.y <= 40) {
+            if (!isAtTop) {
+                console.log('onScroll: to setIsAtTop as true')
+                setIsAtTop(true)
+            }
+        } else {
+            if (isAtTop) {
+                console.log('onScroll: to setIsAtTop as false')
+                setIsAtTop(false)
+            }
+        }
+
+    }
+
     // render
     return (
         <View style={[styles.container]}>
@@ -71,12 +90,14 @@ export default (props: Props) => {
                     size={30} />
                 <Text style={[styles.boardName]}>{bid}</Text>
                 {isLoading ? <ActivityIndicator size="large" style={[styles.loadingCircle]} /> : null}
+                {!isAtTop ? <Icon style={[styles.backIcon]} name='arrow-circle-up' size={30} /> : null}
+
             </View>
             <View style={styles.articlelist}>
                 <ArticleList
                     articles={articles}
                     onStartReached={onScrollUp}
-                    onEndReached={onScrollDown} accessibilityLabel='articles' onStartReachedThreshold={1} onEndReachedThreshold={1}
+                    onEndReached={onScrollDown} accessibilityLabel='articles' onStartReachedThreshold={300} onEndReachedThreshold={300} onScroll={onScroll}
                 />
             </View>
             <View>

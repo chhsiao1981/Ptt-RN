@@ -27,21 +27,22 @@ export default (props: { history: any }) => {
 
     //get me
     let root_q = getRoot<LoginMain>(stateLoginMain)
-    // defensive programming for no me yet
-    if (!root_q) {
-        return <Empty />
-    }
-    let root = root_q
-    const { id: myID, state: me } = root
-    let account = me.account
 
     // useEffect on account
+    let account = root_q?.state.account
     useEffect(() => {
         if (!account) {
             return
         }
         props.history.push('/home')
     }, [account])
+
+    // defensive programming for no me yet
+    if (!root_q) {
+        return <Empty />
+    }
+    let root = root_q
+    const { id: myID, state: me } = root
 
     //handler
     let login = () => {

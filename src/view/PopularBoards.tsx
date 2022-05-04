@@ -35,8 +35,6 @@ export default (props: Props) => {
     let me = me_q
     let isLoading = me.isLoading
 
-    useEffect(() => {
-    }, [isLoading])
 
     // render
     return (

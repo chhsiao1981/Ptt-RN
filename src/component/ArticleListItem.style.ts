@@ -5,7 +5,7 @@ const styles = StyleSheet.create({
         flex: 1,
         marginVertical: 8,
         marginHorizontal: 14,
-        height: 50,
+        height: 70,
     },
     text: {
         color: 'white'
@@ -15,7 +15,7 @@ const styles = StyleSheet.create({
     },
     primaryText: {
         flex: 1,
-        fontSize: 20
+        fontSize: 18
     },
     secondaryText: {
         fontSize: 16,
@@ -32,6 +32,10 @@ const styles = StyleSheet.create({
     },
     secondRow: {
         flexDirection: 'row',
+    },
+    blankRow: {
+        flexDirection: 'row',
+        height: 20,
     },
     thirdRow: {
         flexDirection: 'row',

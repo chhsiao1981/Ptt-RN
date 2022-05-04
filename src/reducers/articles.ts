@@ -3,7 +3,7 @@ import { $t } from '../i18n'
 
 import articleApi from '../api/articleApi'
 
-import { N_ARTICLES } from './constants'
+import { N_ARTICLES, REFRESH_N_ARTICLES } from './constants'
 import { ArticleSummary } from '../model/article'
 import { mergeList } from './utils'
 
@@ -152,7 +152,8 @@ export const getArticles = (myID: string, bid: string, search: string, startIdx:
             loadingUpdate.idxToScroll = displayIdx
         }
         dispatch(_setData(myID, loadingUpdate))
-        const [data_q, status, errmsg] = await articleApi.loadArticles(bid, startIdx, N_ARTICLES, desc)
+        let nArticles = me.articles?.length ? REFRESH_N_ARTICLES : N_ARTICLES
+        const [data_q, status, errmsg] = await articleApi.loadArticles(bid, startIdx, nArticles, desc)
         if (status !== 200) {
             dispatch(_setData(myID, { err: $t(`errmsg.${errmsg}`), idxToScroll: displayIdx }))
             return
@@ -172,11 +173,14 @@ export const getArticles = (myID: string, bid: string, search: string, startIdx:
         me = me_q
         let bottomArticles = me.bottomArticles || []
 
+        // setup each article
         let articles = data.list || []
         articles.map((each: ArticleSummary) => each.url = `/board/${bid}/article/${each.aid}`)
+        articles.map((each: ArticleSummary) => each.id = each.aid)
 
         let startNumIdx = 1
 
+        // merge articles
         let newArticles = mergeList(myArticles, articles, desc, startNumIdx, isExclude)
 
         let idxToScroll = me.displayIdx || 0

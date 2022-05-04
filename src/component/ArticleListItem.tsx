@@ -1,5 +1,5 @@
 import React from "react"
-import { Text, TouchableWithoutFeedback, View } from "react-native"
+import { LayoutChangeEvent, NativeSyntheticEvent, Text, TouchableWithoutFeedback, View } from "react-native"
 import utils from "../util/utils"
 import Icon from "react-native-vector-icons/MaterialIcons"
 import styles from './ArticleListItem.style'
@@ -18,9 +18,17 @@ export default (props: Props) => {
 
     let classStyles = props.isHighlight ? [styles.secondaryText, styles.highlight] : [
         styles.text, styles.secondaryText]
+
+
+    let onLayout = (e: LayoutChangeEvent) => {
+        const { layout } = e.nativeEvent
+
+        console.log('ArticleListItem.onLayout: layout:', layout)
+    }
+
     return (
-        <TouchableWithoutFeedback onPress={openArticle}>
-            <View style={styles.listItem}>
+        <TouchableWithoutFeedback onPress={openArticle} onLayout={onLayout}>
+            <View style={styles.listItem} >
                 <View style={styles.firstRow}>
                     <Text style={classStyles}>[{a.class}]</Text>
                     <Icon style={[styles.icon]} name={'schedule'} size={16} />
