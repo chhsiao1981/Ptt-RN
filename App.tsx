@@ -10,18 +10,13 @@ import styles from './App.style'
 
 type Props = any
 
-export default (props: Props) => {
-    const [isSetI18nConfig, setIsSetI18nConfig] = useState(false)
-
+export default (_: Props) => {
     let handleLocalizationChange = () => {
-        setIsSetI18nConfig(false)
         setI18nConfig()
-        setIsSetI18nConfig(true)
     }
 
     useEffect(() => {
         setI18nConfig()
-        setIsSetI18nConfig(true)
         RNLocalize.addEventListener('change', handleLocalizationChange)
 
         return () => {

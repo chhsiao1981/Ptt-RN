@@ -24,23 +24,6 @@ export default (props: Props) => {
     const [theLayout, setTheLayout] = useState({ x: 0, y: 0, width: 0, height: 0 })
     const [theContentSize, setTheContentSize] = useState({ width: 0, height: 0 })
 
-    /*
-    useEffect(() => {
-        if (!ref || !ref.current) {
-            return
-        }
-        if (!articles || articles.length === 0) {
-            return
-        }
-        if (!theLayout.height) {
-            return
-        }
-        if (!theContentSize.height)
-            ref.current.scrollToEnd({ animated: false })
-
-    }, [ref, articles, theLayout.height, theContentSize.height])
-    */
-
     // @ts-ignore
     let getItemLayout = (_?: ArticleSummary[] | null, index: number): ItemLayout => {
         return {
@@ -50,12 +33,8 @@ export default (props: Props) => {
         }
     }
 
-    let emptyFn = async () => {
-    }
-
     let onLayout = (e: LayoutChangeEvent) => {
         const { layout } = e.nativeEvent
-
         setTheLayout({ x: layout.x, y: layout.y, width: layout.width, height: layout.height })
     }
 
@@ -63,6 +42,8 @@ export default (props: Props) => {
         setTheContentSize({ width: width, height: height })
     }
 
+    let emptyFn = async () => {
+    }
     let onStartReached = props.onStartReached || emptyFn
     let onEndReached = props.onEndReached || emptyFn
 
